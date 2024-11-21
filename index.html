@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mini Jira Mejorado</title>
+ 
+    <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+          const MiniJira = () => {
+            const [tasks, setTasks] = React.useState([]);
+            const [teams, setTeams] = React.useState([]);
+            const [selectedTeam, setSelectedTeam] = React.useState(null)
+            // Estado para las tareas
+            const handleCreateTeam = () => {
+              const newTeamName = prompt("Introduce el nombre del equipo:");
+              if (newTeamName) {
+                const newTeam = {
+                  id: Date.now(),
+                  name: newTeamName,
+                };
+                setTeams([...teams, newTeam]);
+                localStorage.setItem('teams', JSON.stringify([...teams, newTeam]));
+              }
+            };
+
+
+ //ULTIMOS CAMBIOS 20/11/2024 9:50  
+ const handleDeleteTeam = (teamId) => {
+  const updatedTeams = teams.filter(team => team.id !== teamId);
+  setTeams(updatedTeams);
+  localStorage.setItem('teams', JSON.stringify(updatedTeams));
+
+  // Eliminar las tareas asociadas al equipo:
+  const updatedTasks = tasks.filter(task => task.teamId !== teamId);
+  setTasks(updatedTasks);
+  localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+
+  // Si el equipo eliminado era el seleccionado, deseleccionamos
+  if (selectedTeam && selectedTeam.id === teamId) {
+    setSelectedTeam(null);
+  }
+};
+
+
+
+// Cargar equipos desde localStorage al iniciar
+React.useEffect(() => {
+       const storedTeams = localStorage.getItem('teams');
+       if (storedTeams) {
+           setTeams(JSON.parse(storedTeams));
+       }
+
+       const storedTasks = localStorage.getItem('tasks');
+       if (storedTasks) {
+           setTasks(JSON.parse(storedTasks));
+       }
+   }, []);
+
+
+
+
+
+
+
+
+
+
+      const [newTask, setNewTask] = React.useState({
+        title: '',
+        description: '',
+        priority: 'medium',
+        assignee: '',
+        startDate: '',
+        startTime: '',
+        endDate: '',
+        endTime: '',
+      });
+
+      const [editingTask, setEditingTask] = React.useState(null);
+
+      const priorityColors = {
+        high: 'bg-red-100 text-red-800',
+        medium: 'bubble-gum: #ff77e9',
+        low: 'bg-green-100 text-green-800',
+      };
+
+      const columns = [
+        { id: 'todo', title: 'Por hacer' },
+        { id: 'in-progress', title: 'En progreso' },
+        { id: 'done', title: 'Completado' },
+      ];
+
+      const PRIORITIES = {
+  HIGH: 'high',
+  MEDIUM: 'medium',
+  LOW: 'low',
+};
+
+const saveTasksToLocalStorage = () => {
+  try {
+    localStorage.setItem('tasks', JSON.stringify(tasks));
+  } catch (error) {
+    console.error('Error saving tasks to localStorage:', error);
+    // Manejar el error de forma adecuada, por ejemplo, mostrar un mensaje al usuario.
+  }
+};
+
+
+      
+const handleAddTask = () => {
+  if (newTask.title && newTask.startDate && newTask.endDate) {
+    const selectedTeamObj = teams.find(team => team.id === parseInt(newTask.assignee, 10));
+   
+    const updatedTasks = [
+      ...tasks,
+      {
+        id: Date.now(),
+        ...newTask,
+        teamId: selectedTeamObj ? selectedTeamObj.id : null,
+        status: 'todo',
+        team: selectedTeamObj,
+        teamName: selectedTeamObj ? selectedTeamObj.name : '',
+      },
+    ];
+    setTasks(updatedTasks);
+    localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+    setNewTask({
+      title: '',
+      description: '',
+      priority: 'medium',
+      assignee: '',
+      startDate: '',
+      startTime:'',
+      endDate: '',
+      endTime
+    });
+  }
+};
+
+
+      
+// Dentro de handleDeleteTask o donde sea apropiado:
+  const handleDeleteTask = (taskId) => {
+    const updatedTasks = tasks
+.filter(task => task.id !== taskId);
+    setTasks(updatedTasks);
+    localStorage.setItem('tasks', JSON.stringify(updatedTasks)); 
+  };
+
+
+
+      const handleEditTask = (task) => {
+        setEditingTask(task);
+      };
+
+      const handleUpdateTask = () => {
+        if (editingTask) {
+          setTasks(tasks.map(task => 
+            task.id === editingTask.id ? editingTask : task
+          ));
+          setEditingTask(null);
+        }
+      };
+
+      const moveTask = (taskId, newStatus) => {
+        setTasks(tasks.map(task => 
+          task.id === taskId ? { ...task, status: newStatus } : task
+        ));
+      };
+
+      const calculateProgress = (startDate, endDate) => {
+        const start = new Date(Date.parse(startDate));
+        const end = new Date(Date.parse(endDate));
+        const today = new Date();
+        const total = end - start;
+        const elapsed = today - start;
+        return Math.min(100, Math.max(0, Math.round((elapsed / total) * 100)));
+      };
+
+      const getRemainingDays = (endDate) => {
+        const end = new Date(endDate);
+        const today = new Date();
+        const remaining = Math.ceil((end - today) / (1000 * 60 * 60 * 24));
+        return remaining > 0 ? remaining : 0;
+      };
+
+
+
+    const saveTasks = (tasks) => {
+     localStorage.setItem('tasks', JSON.stringify(tasks));
+    };
+
+
+      const downloadPDF = () => {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({
+    orientation: 'landscape',
+    unit: 'mm',
+    format: 'a4'
+  });
+
+  // Configuración de estilos
+  const styles = {
+    title: { fontSize: 18, fontColor: '#2563eb', font: 'helvetica' },
+    header: { fontSize: 10, fontColor: '#64748b', backgroundColor: '#f8fafc', font: 'helvetica' },
+    cell: { fontSize: 8, fontColor: '#334155', font: 'helvetica' }
+  };
+
+  // Configuración de layout
+  const layout = {
+    margin: 10,
+    lineHeight: 7,
+    columnWidths: {
+      title: 50,
+      description: 70,
+      dates: 40,
+      priority: 20,
+      assignee: 30,
+      status: 30,
+      progress: 20
+    }
+  };
+
+  // Funciones auxiliares
+  const drawColoredCircle = (doc, x, y, color) => {
+    doc.setFillColor(color);
+    doc.circle(x, y, 1.5, 'F');
+  };
+
+  const addBackground = (x, y, width, height, color) => {
+    doc.setFillColor(color);
+    doc.rect(x, y, width, height, 'F');
+  };
+
+  const getPriorityColor = (priority) => {
+    const colors = {
+      high: '#ef4444',
+      medium: '#f59e0b',
+      low: '#22c55e'
+    };
+    return colors[priority] || colors.medium;
+  };
+
+  // Encabezado y título
+  doc.setFont(styles.title.font, 'bold');
+  doc.setFontSize(styles.title.fontSize);
+  doc.setTextColor(styles.title.fontColor);
+  doc.text('Mini Jira - Reporte de Tareas', doc.internal.pageSize.getWidth() / 2, layout.margin, { align: 'center' });
+
+  // Fecha y metadata
+  doc.setFontSize(styles.cell.fontSize);
+  doc.setTextColor(styles.cell.fontColor);
+  const date = new Date().toLocaleDateString();
+  doc.text(`Generado el: ${date}`, layout.margin, layout.margin + 10);
+  doc.text(`Total de tareas: ${tasks.length}`, layout.margin, layout.margin + 15);
+
+  // Encabezados de la tabla
+  let yOffset = layout.margin + 25;
+  const headerHeight = 8;
+  
+  // Fondo de encabezados
+  addBackground(
+    layout.margin,
+    yOffset,
+    doc.internal.pageSize.getWidth() - (layout.margin * 2),
+    headerHeight,
+    styles.header.backgroundColor
+  );
+
+  // Texto de encabezados
+  doc.setFont(styles.header.font, 'bold');
+  doc.setFontSize(styles.header.fontSize);
+  doc.setTextColor(styles.header.fontColor);
+  
+  const headers = ['Tarea', 'Descripción', 'Fechas', 'Prioridad', 'Asignado', 'Estado', 'Progreso'];
+  let xOffset = layout.margin;
+  
+  headers.forEach((header, index) => {
+    doc.text(header, xOffset, yOffset + 6);
+    xOffset += Object.values(layout.columnWidths)[index];
+  });
+
+  // Contenido de la tabla
+  yOffset += headerHeight + 2;
+  doc.setFont(styles.cell.font, 'normal');
+  doc.setFontSize(styles.cell.fontSize);
+
+  tasks.forEach((task, index) => {
+    if (yOffset > doc.internal.pageSize.getHeight() - layout.margin) {
+      doc.addPage();
+      yOffset = layout.margin;
+    }
+
+    if (index % 2 === 0) {
+      addBackground(
+        layout.margin,
+        yOffset,
+        doc.internal.pageSize.getWidth() - (layout.margin * 2),
+        layout.lineHeight + 4,
+        '#f8fafc'
+      );
+    }
+
+    let xPos = layout.margin;
+    doc.setTextColor(styles.cell.fontColor);
+
+    // Tarea
+    doc.text(task.title, xPos, yOffset + 4);
+    xPos += layout.columnWidths.title;
+
+    // Descripción (con wrap)
+    const descriptionLines = doc.splitTextToSize(task.description, layout.columnWidths.description - 2);
+    doc.text(descriptionLines, xPos, yOffset + 4);
+    xPos += layout.columnWidths.description;
+
+    // Fechas
+    doc.text(`${task.startDate} - ${task.endDate}`, xPos, yOffset + 4);
+    xPos += layout.columnWidths.dates;
+
+    // Prioridad (círculo coloreado)
+    const priorityColor = getPriorityColor(task.priority);
+    drawColoredCircle(doc, xPos + 5, yOffset + 3, priorityColor);
+    xPos += layout.columnWidths.priority;
+
+    // Asignado
+    doc.text(task.assignee, xPos, yOffset + 4);
+    xPos += layout.columnWidths.assignee;
+
+    // Estado
+    doc.text(
+      task.status === 'todo' ? 'Por hacer' :
+      task.status === 'in-progress' ? 'En progreso' : 'Completado',
+      xPos,
+      yOffset + 4
+    );
+    xPos += layout.columnWidths.status;
+
+    // Progreso
+    const progress = calculateProgress(task.startDate, task.endDate);
+    doc.text(`${progress}%`, xPos, yOffset + 4);
+
+    yOffset += layout.lineHeight + 4;
+  });
+
+  // Función para dibujar el cronograma
+  const drawGanttChart = (tasks, startY) => {
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const chartWidth = 200; // Reducimos un poco el ancho del chart
+  const chartHeight = 10 * tasks.length;
+  const startX = (pageWidth - chartWidth) / 2; // Centramos el chart horizontalmente
+  const dayWidth = 4; // Reducimos un poco el ancho de cada día
+
+  // Encuentra la fecha más temprana y más tardía
+  const dates = tasks.flatMap(task => [new Date(task.startDate), new Date(task.endDate)]);
+  const minDate = new Date(Math.min.apply(null, dates));
+  const maxDate = new Date(Math.max.apply(null, dates));
+
+  // Dibuja el eje de tiempo
+  doc.setFontSize(8);
+  doc.setTextColor('#333333');
+  for (let i = 0; i <= chartWidth / dayWidth; i++) {
+    const date = new Date(minDate.getTime() + i * dayWidth * 24 * 60 * 60 * 1000);
+    if (date <= maxDate) {
+      doc.text(date.getDate().toString(), startX + i * dayWidth, startY - 2, { align: 'center' });
+    }
+  }
+
+  // Dibuja las barras de las tareas
+  tasks.forEach((task, index) => {
+    const taskStartDate = new Date(task.startDate);
+    const taskEndDate = new Date(task.endDate);
+    const taskStartX = startX + (taskStartDate - minDate) / (24 * 60 * 60 * 1000) * dayWidth;
+    const taskWidth = (taskEndDate - taskStartDate) / (24 * 60 * 60 * 1000) * dayWidth;
+
+    doc.setFillColor(getPriorityColor(task.priority));
+    doc.rect(taskStartX, startY + index * 10, taskWidth, 8, 'F');
+
+    doc.setFontSize(8);
+    doc.setTextColor('#000000');
+    doc.text(task.title, startX - 5, startY + index * 10 + 6, { align: 'right' });
+  });
+};
+  // Añadir una nueva página para el cronograma
+  doc.addPage();
+
+// Título del cronograma
+doc.setFontSize(16);
+doc.setTextColor('#000000');
+doc.text('Cronograma de Tareas', doc.internal.pageSize.getWidth() / 2, 20, { align: 'center' });
+
+// Dibujar el cronograma
+drawGanttChart(tasks, 40);
+
+  // Pie de página
+  const pageCount = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.setTextColor('#94a3b8');
+    doc.text(
+      `Página ${i} de ${pageCount}`,
+      doc.internal.pageSize.getWidth() / 2,
+      doc.internal.pageSize.getHeight() - 5,
+      { align: 'center' }
+    );
+  }
+
+  // Guardar el PDF
+  doc.save('mini-jira-reporte.pdf');
+};
+<div>
+    <h2>Equipos</h2>
+    <button onClick={handleCreateTeam} className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition duration-200">
+  Crear Equipo
+</button>
+    <ul>
+      {teams.map(team => (
+        <li key={team.id} onClick={() => setSelectedTeam(team)}>
+          {team.name}
+        </li>
+      ))}
+    </ul>
+  </div>
+
+      return (
+        <div className="p-4 max-w-7xl mx-auto">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Mini Jira Mejorado</h1>
+        <button onClick={downloadPDF} className="bg-blue-500 text-white px-4 py-2 rounded flex items-center gap-2">
+          📥 Exportar a PDF
+        </button>
+      </div>
+
+      <div className="mb-6">
+  <h2 className="text-xl font-semibold mb-2">Equipos</h2>
+  <button onClick={handleCreateTeam} className="bg-green-500 text-white px-4 py-2 rounded mb-4">
+    Crear Equipo
+  </button>
+  <ul className="border rounded-lg divide-y divide-gray-200">
+    {teams.map(team => (
+      <li key={team.id} className="p-3 flex justify-between items-center">
+        <span 
+          className={`cursor-pointer ${selectedTeam && selectedTeam.id === team.id ? 'font-bold' : ''}`}
+          onClick={() => setSelectedTeam(team)}
+        >
+          {team.name}
+        </span>
+        <button 
+          onClick={() => handleDeleteTeam(team.id)}
+          className="bg-red-500 text-white px-2 py-1 rounded text-sm"
+        >
+          Eliminar
+        </button>
+      </li>
+    ))}
+  </ul>
+</div>    
+          
+
+          {/* Form for new task */}
+          <div className="bg-white shadow rounded-lg p-6 mb-8">
+            <h2 className="text-xl font-semibold mb-4">Nueva Tarea</h2>
+            <div className="grid gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input
+                  className="border p-2 rounded"
+                  placeholder="Título de la tarea"
+                  value={newTask.title}
+                  onChange={(e) => setNewTask({...newTask, title: e.target.value})}
+                />
+                <select
+                className="border p-2 rounded"
+  value={newTask.assignee} // Vincula el valor al estado
+  onChange={(e) => setNewTask({...newTask, assignee: e.target.value})} // Actualiza el estado al cambiar
+ >
+ <option value="">Seleccionar equipo</option> {/* Opción por defecto */}
+  {teams.map(team => (
+    <option key={team.id} value={team.id}> {/* Valor = id del equipo */}
+      {team.name} {/* Texto mostrado = nombre del equipo */}
+    </option>
+  ))}
+</select>
+
+
+
+
+              </div>
+              <textarea
+                className="border p-2 rounded"
+                placeholder="Descripción"
+                value={newTask.description}
+                onChange={(e) => setNewTask({...newTask, description: e.target.value})}
+              />
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <select 
+                  className="border p-2 rounded"
+                  value={newTask.priority}
+                  onChange={(e) => setNewTask({...newTask, priority: e.target.value})}
+                >
+                  <option value="high">Alta</option>
+                  <option value="medium">Media</option>
+                  <option value="low">Baja</option>
+                </select>
+
+                <input 
+    className="border p-2 rounded" 
+    type="time" 
+    placeholder="Hora de inicio (opcional)" 
+    value={newTask.startTime} 
+    onChange={(e) => setNewTask({...newTask, startTime: e.target.value})} 
+  />
+
+  <input 
+    className="border p-2 rounded" 
+    type="time" 
+    placeholder="Hora de fin (opcional)" 
+    value={newTask.endTime} 
+    onChange={(e) => setNewTask({...newTask, endTime: e.target.value})} 
+  />
+
+                
+                <input
+                  className="border p-2 rounded"
+                  type="date"
+                  placeholder="Fecha de inicio"
+                  value={newTask.startDate}
+                  onChange={(e) => setNewTask({...newTask, startDate: e.target.value})}
+                />
+                <input
+                  className="border p-2 rounded"
+                  type="date"
+                  placeholder="Fecha de fin"
+                  value={newTask.endDate}
+                  min={newTask.startDate} 
+                  onChange={(e) => setNewTask({...newTask, endDate: e.target.value})}
+                />
+              </div>
+              <button onClick={handleAddTask} className="bg-green-500 text-white px-4 py-2 rounded">
+                ➕ Añadir Tarea
+              </button>
+            </div>
+          </div>
+
+          {/* Edit Task Modal */}
+          {editingTask && (
+            <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full"
+            id="my-modal">
+              <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+                  <div className="mt-3 text-center">
+                  <h3 className="text-lg leading-6 font-medium text-gray-900">Editar Tarea</h3>
+                  <div className="mt-2 px-7 py-3">
+  <input
+    className="border p-2 rounded w-full mb-3"
+    placeholder="Título de la tarea"
+    value={editingTask.title}
+    onChange={(e) => setEditingTask({...editingTask, title: e.target.value})}
+  />
+  <textarea
+    className="border p-2 rounded w-full mb-3"
+    placeholder="Descripción"
+    value={editingTask.description}
+    onChange={(e) => setEditingTask({...editingTask, description: e.target.value})}
+  />
+
+  {/* Aquí se agrega el select para el equipo */}
+  <select 
+    className="border p-2 rounded w-full mb-3"
+    placeholder="Equipo"  // Agregamos un placeholder si lo deseas
+    value={editingTask.teamId}
+    onChange={(e) => setEditingTask({ ...editingTask, teamId: parseInt(e.target.value, 10) })}
+  >
+    <option value="">Sin equipo</option> 
+    {teams.map((team) => (
+      <option key={team.id} value={team.id}>
+        {team.name}
+      </option>
+    ))}
+  </select>
+
+  <input
+    className="border p-2 rounded w-full mb-3"
+    placeholder="Asignado a"
+    value={editingTask.assignee}
+    onChange={(e) => setEditingTask({...editingTask, assignee: e.target.value})}
+  />
+  <select 
+    className="border p-2 rounded w-full mb-3"
+    value={editingTask.priority}
+    onChange={(e) => setEditingTask({...editingTask, priority: e.target.value})}
+  >
+    <option value="high">Alta</option>
+    <option value="medium">Media</option>
+    <option value="low">Baja</option>
+  </select>
+  <input
+    className="border p-2 rounded w-full mb-3"
+    type="date"
+    value={editingTask.startDate}
+    onChange={(e) => setEditingTask({...editingTask, startDate: e.target.value})}
+  />
+
+  <input
+    className="border p-2 rounded w-full mb-3"
+    type="date"
+    value={editingTask.endDate}
+    onChange={(e) => setEditingTask({...editingTask, endDate: e.target.value})}
+  />
+</div>
+
+                  <div className="items-center px-4 py-3 flex justify-between"> {/* Agregamos flex justify-between */}
+          <button 
+            className="px-4 py-2 bg-gray-300 text-gray-700 text-base font-
+medium rounded-md w-full mr-2 shadow-sm hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300" 
+            onClick={() => setEditingTask(null)} // Agregamos la función para cerrar el modal
+          >
+            Cancelar
+          </button>
+          <button
+            id="ok-btn"
+            className="px-4 py-2 bg-blue-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
+            onClick={handleUpdateTask}
+          >
+            Actualizar Tarea
+          </button>
+        </div> 
+      </div>
+    </div>
+  </div>
+          )}
+
+          {/* Tablero Kanban */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {columns.map(column => (
+              <div key={column.id} className="bg-white shadow rounded-lg p-4">
+                <h2 className="text-lg font-semibold mb-4">{column.title}</h2>
+                <div className="space-y-4">
+                  {tasks
+                    .filter(task => task.status === column.id && (!selectedTeam || task.teamId === selectedTeam.id))
+    .map(task => (
+                      <div key={task.id} className="bg-gray-50 p-4 rounded-lg">
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-start">
+                            <h3 className="font-medium">{task.title}</h3>
+                            <span className={`text-xs px-2 py-1 rounded ${priorityColors[task.priority]}`}>
+                              {task.priority === 'high' ? 'Alta' : task.priority === 'medium' ? 'Media' : 'Baja'}
+                            </span>
+                          </div>
+                         
+                          <p className="text-sm text-gray-600">{task.description}</p>
+                          <div className="flex items-center gap-2 text-sm text-gray-500">
+                            <span>👤 {task.teamName}</span> 
+                            <span>🕒 {task.startDate} - {task.endDate}</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+                            <div className="bg-blue-600 h-2.5 rounded-full" style={{width: `${calculateProgress(task.startDate, task.endDate)}%`}}></div>
+                          </div>
+                          <p className="text-sm text-gray-600">Días restantes: {getRemainingDays(task.endDate)}</p>
+                          <div className="flex gap-2 pt-2">
+                            <button
+                            className="text-sm border px-2 py-1 rounded bg-red-500 text-white"
+                            onClick={() => handleDeleteTask(task.id)}
+                          >
+                            🗑️ Eliminar 
+                          </button>
+
+                            <button 
+                              className="text-sm border px-2 py-1 rounded bg-yellow-500 text-white"
+                              onClick={() => handleEditTask(task)}
+                            >
+                              ✏️ Editar
+                            </button>
+
+                            {column.id !== 'todo' && (
+                              <button 
+                                className="text-sm border px-2 py-1 rounded"
+                                onClick={() => moveTask(task.id, 'todo')}
+                              >
+                                ← Por hacer
+                              </button>
+                            )}
+                            {column.id !== 'in-progress' && (
+                              <button 
+                                className="text-sm border px-2 py-1 rounded"
+                                onClick={() => moveTask(task.id, 'in-progress')}
+                              >
+                                En progreso
+                              </button>
+                            )}
+                            {column.id !== 'done' && (
+                              <button 
+                                className="text-sm border px-2 py-1 rounded"
+                                onClick={() => moveTask(task.id, 'done')}
+                              >
+                                Completado →
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    };
+
+    ReactDOM.render(<MiniJira />, document.getElementById('root'));
+    </script>
+</body>
+</html>
+
+
+
+
