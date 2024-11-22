@@ -648,8 +648,7 @@ medium rounded-md w-full mr-2 shadow-sm hover:bg-gray-400 focus:outline-none foc
                             <h3 className="font-medium">{task.title}</h3>
                             <span className={`text-xs px-2 py-1 rounded ${priorityColors[task.priority]}`}>
                               {task.priority === 'high' ? 'Alta' : task.priority === 'medium' ? 'Media' : 'Baja'}
-                              <span className={`absolute bottom-0 left-0 w-full h-1 ${task.priority === 'high' ? 'bg-red-500' : task.priority === 'medium' ? 'bg-yellow-500' : 'bg-green-500'}`}></span>
-      
+                              
                              </span>
                           </div>
                          
