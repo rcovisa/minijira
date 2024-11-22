@@ -1,6 +1,33 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+
+
+    <style>
+        .tarea-alta { 
+            background-color: #fca5a5; /* Rojo claro */
+            color: #dc2626; /* Rojo oscuro */
+            padding: 0.5rem; /* Añade un poco de padding */
+            border-radius: 0.25rem; /* Bordes redondeados */
+        }
+        .tarea-media {
+            background-color: #fef08a; /* Amarillo claro */
+            color: #d97706; /* Amarillo oscuro */
+            padding: 0.5rem;
+            border-radius: 0.25rem;
+        }
+        .tarea-baja {
+            background-color: #bbf7d0; /* Verde claro */
+            color: #16a34a; /* Verde oscuro */
+            padding: 0.5rem;
+            border-radius: 0.25rem;
+        }
+    </style>
+
+
+
+
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mini Jira Mejorado</title>
@@ -88,9 +115,9 @@ React.useEffect(() => {
       const [editingTask, setEditingTask] = React.useState(null);
 
       const priorityColors = {
-        high: 'bg-red-100 text-red-800',
-        medium: 'bg-yellow-100 text-yellow-800',
-        low: 'bg-green-100 text-green-800',
+        high: 'tarea-alta',
+        medium: 'tarea-media',
+        low: 'tarea-baja',
       };
 
       const columns = [
@@ -646,10 +673,10 @@ medium rounded-md w-full mr-2 shadow-sm hover:bg-gray-400 focus:outline-none foc
                         <div className="space-y-2">
                           <div className="flex justify-between items-start">
                             <h3 className="font-medium">{task.title}</h3>
-                            <span className={`text-xs px-2 py-1 rounded ${priorityColors[task.priority]}`}>
-                              {task.priority === 'high' ? 'Alta' : task.priority === 'medium' ? 'Media' : 'Baja'}
-                              
-                             </span>
+                           <span className={`text-xs px-2 py-1 rounded ${priorityColors[task.priority]}`}>
+    {task.priority === 'high' ? 'Alta' : task.priority === 'medium' ? 'Media' : 'Baja'}
+</span>
+
                           </div>
                          
                           <p className="text-sm text-gray-600">{task.description}</p>
